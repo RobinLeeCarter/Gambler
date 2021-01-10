@@ -2,7 +2,7 @@ from typing import List
 
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib import figure, cm
+from matplotlib import figure
 
 # import utils
 import outcome
@@ -13,11 +13,12 @@ class Controller:
         self.verbose: bool = verbose
 
         # hyperparameters
-        self.theta = 0.1    # accuracy
+        self.theta = 0.0000001    # accuracy
         self.p_heads = 0.4  # probability heads
         self.gamma = 1.0
 
         self.states = np.arange(101)
+        self.non_terminal_states = self.states[1:-1]
         self.V = np.zeros(shape=self.states.shape, dtype=float)
         self.policy = np.zeros(shape=self.states.shape, dtype=float)
 
@@ -27,29 +28,39 @@ class Controller:
 
         while cont:
             delta: float = 0.0
-            for state in self.states:
+
+            for state in self.non_terminal_states:
                 v = self.V[state]
                 action_values = self.get_action_values(state)
                 self.V[state] = np.max(action_values)
                 delta = max(delta, abs(v - self.V[state]))
+            if self.verbose:
+                print(f"iteration = {i}\tdelta = {delta:.6f}")
             if delta < self.theta:
                 cont = False
+            i += 1
 
         # output deterministic policy with maximal action
-        for state in self.states:
+        for state in self.non_terminal_states:
             action_values = self.get_action_values(state)
+            action_values = np.round(action_values, 5)
             max_value = np.max(action_values)
             max_action_bool = (action_values == max_value)
             argmax_actions = np.flatnonzero(max_action_bool)
             # prefer large bets over small or zero bets to get the game over with if equally good
-            self.policy[state] = np.max(argmax_actions)
+            self.policy[state] = np.min(argmax_actions)
+
+        print(self.V)
+        self.graph_v()
+        print(self.policy)
+        self.graph_policy()
 
     # get expected_value of each action
     def get_action_values(self, state: int) -> np.ndarray:
         max_action = min(state, 100-state)
         actions = np.arange(max_action+1)
         action_values = np.zeros(shape=actions.shape, dtype=float)
-        for action in actions:
+        for action in actions[1:]:  # exclude zero action to make the gambler always bet
             outcomes = self.get_outcomes(state, action)
             for outcome_ in outcomes:
                 action_values[action] += outcome_.p * (outcome_.reward + self.gamma * self.V[outcome_.new_state])
@@ -70,3 +81,41 @@ class Controller:
             tails_outcome.is_terminal = True
 
         return [heads_outcome, tails_outcome]
+
+    def graph_v(self):
+        fig: figure.Figure = plt.figure()
+        ax: figure.Axes = fig.subplots()
+        # x = np.arange(self.states_shape[0])
+        # y = np.arange(self.states_shape[1])
+        # x_grid, y_grid = np.meshgrid(x, y)
+
+        # rows, cols = policy.shape
+        ax.bar(self.states, self.V, width=1.0, align="edge")
+
+        # extent=[0.5, cols-0.5, 0.5, rows-0.5]
+        ax.set_xlim(xmin=0, xmax=100)
+        ax.set_ylim(ymin=0, ymax=1.0)
+
+        # contour_set = ax.contour(x_grid, y_grid, policy, levels=self.actions)
+        # ax.clabel(contour_set, inline=True, fontsize=10)
+        # ax.set_title(f'Policy {iteration}')
+        plt.show()
+
+    def graph_policy(self):
+        fig: figure.Figure = plt.figure()
+        ax: figure.Axes = fig.subplots()
+        # x = np.arange(self.states_shape[0])
+        # y = np.arange(self.states_shape[1])
+        # x_grid, y_grid = np.meshgrid(x, y)
+
+        # rows, cols = policy.shape
+        ax.bar(self.states, self.policy, width=1.0, align="edge")
+
+        # extent=[0.5, cols-0.5, 0.5, rows-0.5]
+        ax.set_xlim(xmin=0, xmax=100)
+        # ax.set_ylim(ymin=0, ymax=20)
+
+        # contour_set = ax.contour(x_grid, y_grid, policy, levels=self.actions)
+        # ax.clabel(contour_set, inline=True, fontsize=10)
+        # ax.set_title(f'Policy {iteration}')
+        plt.show()
