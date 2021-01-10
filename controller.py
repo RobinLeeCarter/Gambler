@@ -13,7 +13,11 @@ class Controller:
         self.verbose: bool = verbose
 
         # hyperparameters
-        self.theta = 0.0000001    # accuracy
+        # breaking ties
+        self.action_value_round_dp: int = 7
+        # accuracy
+        self.theta_power_of_ten: int = -7
+        self.theta = 10**self.theta_power_of_ten
         self.p_heads = 0.4  # probability heads
         self.gamma = 1.0
 
@@ -35,7 +39,7 @@ class Controller:
                 self.V[state] = np.max(action_values)
                 delta = max(delta, abs(v - self.V[state]))
             if self.verbose:
-                print(f"iteration = {i}\tdelta = {delta:.6f}")
+                print(f"iteration = {i}\tdelta = {round(delta, -self.theta_power_of_ten):f}")
             if delta < self.theta:
                 cont = False
             i += 1
@@ -50,9 +54,11 @@ class Controller:
             # prefer large bets over small or zero bets to get the game over with if equally good
             self.policy[state] = np.min(argmax_actions)
 
-        print(self.V)
+        if self.verbose:
+            print(self.V)
         self.graph_v()
-        print(self.policy)
+        if self.verbose:
+            print(self.policy)
         self.graph_policy()
 
     # get expected_value of each action
