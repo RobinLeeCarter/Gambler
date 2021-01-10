@@ -18,8 +18,11 @@ class Controller:
         # accuracy
         self.theta_power_of_ten: int = -7
         self.theta = 10**self.theta_power_of_ten
-        self.p_heads = 0.4  # probability heads
-        self.gamma = 1.0
+        # self.p_heads = 0.5   # probability heads original
+        # self.p_heads = 0.25  # probability heads first variation
+        self.p_heads = 0.55  # probability heads second variation
+        self.gamma = 1.0     # 0.99... is interesting
+        self.minimal_action: bool = False    # take the minimal wager of the argmax or the maximal wager
 
         self.states = np.arange(101)
         self.non_terminal_states = self.states[1:-1]
@@ -39,7 +42,7 @@ class Controller:
                 self.V[state] = np.max(action_values)
                 delta = max(delta, abs(v - self.V[state]))
             if self.verbose:
-                print(f"iteration = {i}\tdelta = {round(delta, -self.theta_power_of_ten):f}")
+                print(f"iteration = {i}\tdelta = {round(delta, -self.theta_power_of_ten+1):f}")
             if delta < self.theta:
                 cont = False
             i += 1
@@ -51,8 +54,13 @@ class Controller:
             max_value = np.max(action_values)
             max_action_bool = (action_values == max_value)
             argmax_actions = np.flatnonzero(max_action_bool)
-            # prefer large bets over small or zero bets to get the game over with if equally good
-            self.policy[state] = np.min(argmax_actions)
+
+            if self.minimal_action:
+                # prefer small bets if equally good
+                self.policy[state] = np.min(argmax_actions)
+            else:
+                # prefer large bets to get the game over with if equally good
+                self.policy[state] = np.max(argmax_actions)
 
         if self.verbose:
             print(self.V)
